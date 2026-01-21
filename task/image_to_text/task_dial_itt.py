@@ -11,19 +11,46 @@ from task._models.role import Role
 
 
 async def _put_image() -> Attachment:
+    file_name = 'superman.jpg'
+    image_path = Path(__file__).parent.parent.parent / file_name
+    mime_type_jpg = 'image/jpeg'
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+    
+    image_bytes = BytesIO(image_bytes)
+
+    async with DialBucketClient(API_KEY, DIAL_URL) as bucket_client:
+        result = await bucket_client.put_file(file_name, mime_type_jpg, image_bytes)
+    
+    return Attachment(title=file_name, url=result["url"], type=mime_type_jpg)
+
+async def _put_image2() -> Attachment:
     file_name = 'dialx-banner.png'
     image_path = Path(__file__).parent.parent.parent / file_name
-    mime_type_png = 'image/png'
-    # TODO:
-    #  1. Create DialBucketClient
-    #  2. Open image file
-    #  3. Use BytesIO to load bytes of image
-    #  4. Upload file with client
-    #  5. Return Attachment object with title (file name), url and type (mime type)
-    raise NotImplementedError
+    mime_type_jpg = 'image/png'
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
+    
+    image_bytes = BytesIO(image_bytes)
+
+    async with DialBucketClient(API_KEY, DIAL_URL) as bucket_client:
+        result = await bucket_client.put_file(file_name, mime_type_jpg, image_bytes)
+    
+    return Attachment(title=file_name, url=result["url"], type=mime_type_jpg)
 
 
-def start() -> None:
+async def start() -> None:
+    attachment = await _put_image()
+    attachment2 = await _put_image2()
+    print(attachment)
+    print(attachment2)
+    client = DialModelClient(DIAL_CHAT_COMPLETIONS_ENDPOINT, "gemini-2.5-pro", API_KEY)
+    result = client.get_completion(messages=[
+        Message(role=Role.SYSTEM, content="You are detective and need to try your best to solve the case. You will be presented with the evidence and need to find the connection between them. You answer should be short and concise."),
+        Message(role=Role.USER, content="What do you see on this picture?", custom_content=CustomContent(attachments=[attachment])),
+        Message(role=Role.USER, content="How it corelates to the other picture?", custom_content=CustomContent(attachments=[attachment2]))
+    ])
+    print(result.content)
     # TODO:
     #  1. Create DialModelClient
     #  2. Upload image (use `_put_image` method )
@@ -38,7 +65,6 @@ def start() -> None:
     #        adapts this attachment to Message content in appropriate format for Model.
     #  TRY THIS APPROACH WITH DIFFERENT MODELS!
     #  Optional: Try upload 2+ pictures for analysis
-    raise NotImplementedError
 
 
-start()
+asyncio.run(start())
